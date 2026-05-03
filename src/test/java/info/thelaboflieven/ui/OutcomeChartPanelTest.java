@@ -1,4 +1,4 @@
-package io.deflaker.ui;
+package info.thelaboflieven.ui;
 
 import org.junit.jupiter.api.Test;
 

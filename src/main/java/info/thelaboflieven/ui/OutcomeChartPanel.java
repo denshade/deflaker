@@ -1,6 +1,6 @@
-package io.deflaker.ui;
+package info.thelaboflieven.ui;
 
-import io.deflaker.run.RunOutcome;
+import info.thelaboflieven.run.RunOutcome;
 
 import javax.swing.JPanel;
 import java.awt.Color;

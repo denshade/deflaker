@@ -1,9 +1,9 @@
-package io.deflaker.ui;
+package info.thelaboflieven.ui;
 
-import io.deflaker.cli.SimpleCommandLineSplitter;
-import io.deflaker.run.CommandRunner;
-import io.deflaker.run.RunHistory;
-import io.deflaker.run.RunOutcome;
+import info.thelaboflieven.cli.SimpleCommandLineSplitter;
+import info.thelaboflieven.run.CommandRunner;
+import info.thelaboflieven.run.RunHistory;
+import info.thelaboflieven.run.RunOutcome;
 
 import javax.swing.BorderFactory;
 import javax.swing.Box;

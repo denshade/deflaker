@@ -1,4 +1,4 @@
-package io.deflaker.cli;
+package info.thelaboflieven.cli;
 
 import org.junit.jupiter.api.Test;
 

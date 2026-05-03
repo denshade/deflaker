@@ -1,6 +1,6 @@
-package io.deflaker;
+package info.thelaboflieven;
 
-import io.deflaker.ui.CommandLinePasteFrame;
+import info.thelaboflieven.ui.CommandLinePasteFrame;
 
 import javax.swing.SwingUtilities;
 

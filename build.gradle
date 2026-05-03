@@ -3,7 +3,7 @@ plugins {
     id 'application'
 }
 
-group = 'io.deflaker'
+group = 'info.thelaboflieven'
 version = '1.0-SNAPSHOT'
 
 java {
@@ -16,7 +16,17 @@ tasks.withType(JavaCompile).configureEach {
 }
 
 application {
-    mainClass = 'io.deflaker.App'
+    mainClass = 'info.thelaboflieven.App'
+}
+
+jar {
+    manifest {
+        attributes(
+                'Main-Class': application.mainClass.get(),
+                'Implementation-Title': project.name,
+                'Implementation-Version': project.version
+        )
+    }
 }
 
 repositories {

@@ -1,4 +1,4 @@
-package io.deflaker.run;
+package info.thelaboflieven.run;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledOnOs;

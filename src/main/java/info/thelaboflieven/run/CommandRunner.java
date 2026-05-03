@@ -1,4 +1,4 @@
-package io.deflaker.run;
+package info.thelaboflieven.run;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -7,7 +7,7 @@ import java.util.Objects;
 import java.util.function.Consumer;
 
 /**
- * Runs an external process from a token list (as from {@link io.deflaker.cli.SimpleCommandLineSplitter}).
+ * Runs an external process from a token list (as from {@link info.thelaboflieven.cli.SimpleCommandLineSplitter}).
  */
 public final class CommandRunner {
 
