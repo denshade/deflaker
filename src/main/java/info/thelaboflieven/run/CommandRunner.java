@@ -37,17 +37,17 @@ public final class CommandRunner {
         if (command.isEmpty()) {
             throw new IllegalArgumentException("command must not be empty");
         }
-        ProcessBuilder pb = new ProcessBuilder(command);
+        var pb = new ProcessBuilder(command);
         if (workingDirectory != null) {
             pb.directory(workingDirectory.toFile());
         }
         pb.redirectErrorStream(true);
         pb.redirectOutput(ProcessBuilder.Redirect.PIPE);
-        Process process = pb.start();
+        var process = pb.start();
         if (onStarted != null) {
             onStarted.accept(process);
         }
-        CompletableFuture<byte[]> drain =
+        var drain =
                 CompletableFuture.supplyAsync(
                         () -> {
                             try {
@@ -74,7 +74,7 @@ public final class CommandRunner {
     }
 
     static byte[] readStreamLimited(InputStream in, int maxBytes) throws IOException {
-        ByteArrayOutputStream buf = new ByteArrayOutputStream(Math.min(maxBytes, 16384));
+        var buf = new ByteArrayOutputStream(Math.min(maxBytes, 16384));
         byte[] chunk = new byte[8192];
         int total = 0;
         while (total < maxBytes) {

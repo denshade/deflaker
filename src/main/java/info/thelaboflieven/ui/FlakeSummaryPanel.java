@@ -59,7 +59,7 @@ public final class FlakeSummaryPanel extends JPanel {
             }
             fingerprintListener.accept(analysis.flakes().get(row).fingerprint());
         });
-        JScrollPane scroll = new JScrollPane(table);
+        var scroll = new JScrollPane(table);
         scroll.setPreferredSize(new Dimension(360, 120));
         add(scroll, BorderLayout.CENTER);
     }

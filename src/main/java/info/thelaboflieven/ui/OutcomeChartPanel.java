@@ -42,10 +42,6 @@ public final class OutcomeChartPanel extends JPanel {
         setMinimumSize(new Dimension(400, 120));
     }
 
-    public void setOutcomes(List<RunOutcome> data) {
-        setOutcomes(data, FlakeAnalysis.fromOutcomes(data));
-    }
-
     public void setOutcomes(List<RunOutcome> data, FlakeAnalysis analysis) {
         this.outcomes = data != null ? List.copyOf(data) : List.of();
         this.flakeAnalysis = analysis != null ? analysis : FlakeAnalysis.fromOutcomes(this.outcomes);
