@@ -3,6 +3,8 @@
 # (Run the app from the repo root so the path resolves.)
 
 if ((Get-Random -Maximum 10) -eq 0) {
+    $val=(Get-Random -Maximum 2)
+    echo "Failed thread $val"
     exit 1
 }
 exit 0
