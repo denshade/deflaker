@@ -74,18 +74,18 @@ public final class CommandLinePasteFrame extends JFrame {
 
         stopButton.setEnabled(false);
 
-        JLabel hint = new JLabel("Paste a shell command (e.g. gradle test). Exit code 0 = pass, non-zero = fail.");
+        var hint = new JLabel("Paste a shell command (e.g. gradle test). Exit code 0 = pass, non-zero = fail.");
         hint.setBorder(new EmptyBorder(0, 0, 8, 0));
 
-        JPanel cmdPanel = new JPanel(new BorderLayout());
+        var cmdPanel = new JPanel(new BorderLayout());
         cmdPanel.setBorder(BorderFactory.createEmptyBorder(12, 12, 8, 12));
         cmdPanel.add(hint, BorderLayout.NORTH);
-        JScrollPane scroll = new JScrollPane(commandArea);
+        var scroll = new JScrollPane(commandArea);
         scroll.setPreferredSize(new Dimension(720, 110));
         cmdPanel.add(scroll, BorderLayout.CENTER);
 
-        JPanel cmdButtons = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
-        JButton clear = new JButton("Clear");
+        var cmdButtons = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        var clear = new JButton("Clear");
         clear.addActionListener(ev -> {
             commandArea.setText("");
             updatePreview();
@@ -93,7 +93,7 @@ public final class CommandLinePasteFrame extends JFrame {
         cmdButtons.add(clear);
         cmdPanel.add(cmdButtons, BorderLayout.SOUTH);
 
-        JPanel runRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 4));
+        var runRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 4));
         runRow.setBorder(BorderFactory.createEmptyBorder(0, 12, 4, 12));
         runRow.add(startButton);
         runRow.add(stopButton);
@@ -101,44 +101,44 @@ public final class CommandLinePasteFrame extends JFrame {
         runRow.add(runCountSpinner);
         runRow.add(untilStopped);
 
-        JPanel statusRow = new JPanel(new BorderLayout());
+        var statusRow = new JPanel(new BorderLayout());
         statusRow.setBorder(BorderFactory.createEmptyBorder(0, 12, 8, 12));
         statusRow.add(statusLabel, BorderLayout.WEST);
 
-        JPanel north = new JPanel(new BorderLayout());
+        var north = new JPanel(new BorderLayout());
         north.add(cmdPanel, BorderLayout.NORTH);
-        Box runBox = Box.createVerticalBox();
+        var runBox = Box.createVerticalBox();
         runBox.add(runRow);
         runBox.add(statusRow);
         north.add(runBox, BorderLayout.SOUTH);
 
-        JPanel chartWrap = new JPanel(new BorderLayout());
+        var chartWrap = new JPanel(new BorderLayout());
         chartWrap.setBorder(BorderFactory.createEmptyBorder(0, 12, 8, 12));
         chartWrap.add(chartPanel, BorderLayout.CENTER);
         flakeSummaryPanel.setFingerprintSelectionListener(chartPanel::setHighlightedFingerprint);
 
-        JPanel failureWrap = new JPanel(new BorderLayout(0, 4));
+        var failureWrap = new JPanel(new BorderLayout(0, 4));
         failureWrap.setBorder(BorderFactory.createEmptyBorder(0, 12, 0, 12));
-        JPanel failureHeader = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        var failureHeader = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
         failureHeader.add(
                 new JLabel("Failure logs (full output; unique patterns summarized in the table above):"));
-        JButton clearFailures = new JButton("Clear failure logs");
+        var clearFailures = new JButton("Clear failure logs");
         clearFailures.addActionListener(ev -> failureLogArea.setText(""));
         failureHeader.add(clearFailures);
         failureWrap.add(failureHeader, BorderLayout.NORTH);
-        JScrollPane failureScroll = new JScrollPane(failureLogArea);
+        var failureScroll = new JScrollPane(failureLogArea);
         failureScroll.setPreferredSize(new Dimension(720, 140));
         failureWrap.add(failureScroll, BorderLayout.CENTER);
 
-        JSplitPane bottomSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, flakeSummaryPanel, failureWrap);
+        var bottomSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, flakeSummaryPanel, failureWrap);
         bottomSplit.setResizeWeight(0.38);
         bottomSplit.setBorder(null);
 
-        JSplitPane split = new JSplitPane(JSplitPane.VERTICAL_SPLIT, chartWrap, bottomSplit);
+        var split = new JSplitPane(JSplitPane.VERTICAL_SPLIT, chartWrap, bottomSplit);
         split.setResizeWeight(0.48);
         split.setBorder(null);
 
-        JPanel south = new JPanel(new BorderLayout(0, 8));
+        var south = new JPanel(new BorderLayout(0, 8));
         south.setBorder(BorderFactory.createEmptyBorder(0, 12, 12, 12));
         south.add(new JLabel("Parsed tokens:"), BorderLayout.NORTH);
         south.add(previewField, BorderLayout.CENTER);
@@ -182,7 +182,7 @@ public final class CommandLinePasteFrame extends JFrame {
     }
 
     private void startRuns() {
-        List<String> tokens = SimpleCommandLineSplitter.split(commandArea.getText());
+        var tokens = SimpleCommandLineSplitter.split(commandArea.getText());
         if (tokens.isEmpty()) {
             JOptionPane.showMessageDialog(this, "Enter a non-empty command.", "Nothing to run", JOptionPane.WARNING_MESSAGE);
             return;
@@ -191,7 +191,7 @@ public final class CommandLinePasteFrame extends JFrame {
             return;
         }
 
-        Path cwd = Path.of("").toAbsolutePath().normalize();
+        var cwd = Path.of("").toAbsolutePath().normalize();
         boolean infinite = untilStopped.isSelected();
         int target = infinite ? Integer.MAX_VALUE : ((Number) runCountSpinner.getValue()).intValue();
 
@@ -313,18 +313,18 @@ public final class CommandLinePasteFrame extends JFrame {
     }
 
     private void refreshViews() {
-        List<RunOutcome> snap = history.snapshot();
-        FlakeAnalysis analysis = FlakeAnalysis.fromOutcomes(snap);
+        var snap = history.snapshot();
+        var analysis = FlakeAnalysis.fromOutcomes(snap);
         chartPanel.setOutcomes(snap, analysis);
         flakeSummaryPanel.setAnalysis(analysis);
     }
 
     private void stopRuns() {
-        SwingWorker<?, ?> w = worker;
+        var w = worker;
         if (w != null) {
             w.cancel(true);
         }
-        Process p = currentProcess.getAndSet(null);
+        var p = currentProcess.getAndSet(null);
         if (p != null) {
             p.destroyForcibly();
         }
@@ -336,7 +336,7 @@ public final class CommandLinePasteFrame extends JFrame {
     }
 
     private void updatePreview() {
-        List<String> tokens = SimpleCommandLineSplitter.split(commandArea.getText());
+        var tokens = SimpleCommandLineSplitter.split(commandArea.getText());
         previewField.setText(
                 tokens.stream().map(CommandLinePasteFrame::quoteForDisplay).collect(Collectors.joining(" ")));
     }
