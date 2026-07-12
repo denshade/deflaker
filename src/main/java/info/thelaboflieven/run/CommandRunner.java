@@ -59,13 +59,12 @@ public final class CommandRunner {
         try {
             int exitCode = process.waitFor();
             byte[] raw = drain.get();
-            Charset charset = Charset.defaultCharset();
             if (exitCode == 0) {
                 return new ProcessRunResult(0, "");
             }
-            return new ProcessRunResult(exitCode, new String(raw, charset));
+            return new ProcessRunResult(exitCode, new String(raw, Charset.defaultCharset()));
         } catch (ExecutionException e) {
-            Throwable c = e.getCause();
+            var c = e.getCause();
             if (c instanceof RuntimeException re) {
                 throw re;
             }
