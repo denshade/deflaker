@@ -1,6 +1,5 @@
 package info.thelaboflieven.run;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.Charset;
@@ -73,18 +72,6 @@ public final class CommandRunner {
     }
 
     static byte[] readStreamLimited(InputStream in, int maxBytes) throws IOException {
-        var buf = new ByteArrayOutputStream(Math.min(maxBytes, 16384));
-        byte[] chunk = new byte[8192];
-        int total = 0;
-        while (total < maxBytes) {
-            int r = in.read(chunk);
-            if (r == -1) {
-                break;
-            }
-            int n = Math.min(r, maxBytes - total);
-            buf.write(chunk, 0, n);
-            total += n;
-        }
-        return buf.toByteArray();
+        return in.readNBytes(maxBytes);
     }
 }
