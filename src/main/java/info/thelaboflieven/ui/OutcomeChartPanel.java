@@ -1,5 +1,7 @@
 package info.thelaboflieven.ui;
 
+import info.thelaboflieven.run.FlakeAnalysis;
+import info.thelaboflieven.run.FlakeSummary;
 import info.thelaboflieven.run.RunOutcome;
 
 import javax.swing.JPanel;
@@ -13,6 +15,7 @@ import java.awt.RenderingHints;
 import java.awt.event.MouseEvent;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 /**
  * Bar timeline: each stripe is one run — color = pass/fail, height = duration (scaled to max in view).
@@ -24,6 +27,8 @@ public final class OutcomeChartPanel extends JPanel {
     private static final Color AXIS = new Color(108, 117, 125);
 
     private volatile List<RunOutcome> outcomes = List.of();
+    private volatile FlakeAnalysis flakeAnalysis = FlakeAnalysis.EMPTY;
+    private volatile String highlightedFingerprint;
 
     private final int padLeft = 56;
     private final int padRight = 12;
@@ -38,7 +43,17 @@ public final class OutcomeChartPanel extends JPanel {
     }
 
     public void setOutcomes(List<RunOutcome> data) {
+        setOutcomes(data, FlakeAnalysis.fromOutcomes(data));
+    }
+
+    public void setOutcomes(List<RunOutcome> data, FlakeAnalysis analysis) {
         this.outcomes = data != null ? List.copyOf(data) : List.of();
+        this.flakeAnalysis = analysis != null ? analysis : FlakeAnalysis.fromOutcomes(this.outcomes);
+        repaint();
+    }
+
+    public void setHighlightedFingerprint(String fingerprint) {
+        this.highlightedFingerprint = fingerprint;
         repaint();
     }
 
@@ -67,7 +82,48 @@ public final class OutcomeChartPanel extends JPanel {
         int i = (int) Math.floor((e.getX() - padLeft) / barW);
         i = Math.max(0, Math.min(n - 1, i));
         RunOutcome o = data.get(i);
-        return "Run " + (i + 1) + ": " + (o.success() ? "pass" : "fail") + ", " + formatDuration(o.durationMs());
+        if (o.success()) {
+            return "Run " + (i + 1) + ": pass, " + formatDuration(o.durationMs());
+        }
+        String flakeLabel = flakeLabelForRun(i);
+        StringBuilder sb = new StringBuilder("<html>");
+        sb.append("Run ")
+                .append(i + 1)
+                .append(": fail, exit=")
+                .append(o.exitCode())
+                .append(", ")
+                .append(formatDuration(o.durationMs()));
+        if (flakeLabel != null) {
+            sb.append("<br>Flake: ").append(escapeHtml(flakeLabel));
+        }
+        if (o.capturedOutput() != null && !o.capturedOutput().isEmpty()) {
+            String snip = escapeHtml(o.capturedOutput().trim());
+            if (snip.length() > 500) {
+                snip = snip.substring(0, 500) + "…";
+            }
+            snip = snip.replace("\n", "<br>");
+            sb.append("<br><span style='font-size:10px;font-family:monospace'>").append(snip).append("</span>");
+        }
+        sb.append("</html>");
+        return sb.toString();
+    }
+
+    private String flakeLabelForRun(int runIndex) {
+        Map<Integer, String> map = flakeAnalysis.runIndexToFingerprint();
+        String fp = map.get(runIndex);
+        if (fp == null) {
+            return null;
+        }
+        for (FlakeSummary s : flakeAnalysis.flakes()) {
+            if (s.fingerprint().equals(fp)) {
+                return s.label();
+            }
+        }
+        return fp;
+    }
+
+    private static String escapeHtml(String s) {
+        return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
     }
 
     @Override
@@ -84,9 +140,10 @@ public final class OutcomeChartPanel extends JPanel {
         g2.setColor(Color.BLACK);
         g2.setFont(getFont().deriveFont(Font.PLAIN, 12f));
         FontMetrics fm = g2.getFontMetrics();
-        g2.drawString("Bar height = duration; color = green pass / red fail (hover for ms)", padLeft, 16);
+        g2.drawString("Bar height = duration; failure color = unique flake pattern (select row below)", padLeft, 16);
 
         List<RunOutcome> data = outcomes;
+        FlakeAnalysis flakes = flakeAnalysis;
         if (data.isEmpty()) {
             g2.setColor(AXIS);
             g2.drawString("No runs yet — paste a command and press Start.", padLeft, padTop + chartH / 2);
@@ -113,8 +170,22 @@ public final class OutcomeChartPanel extends JPanel {
             int x2 = padLeft + (int) Math.floor((i + 1) * barW);
             int bw = Math.max(1, x2 - x1);
             int y = baselineY - barH;
-            g2.setColor(ok ? PASS : FAIL);
+            Color barColor = colorForRun(i, ok, flakes);
+            if (!ok && highlightedFingerprint != null) {
+                String fp = flakes.runIndexToFingerprint().get(i);
+                if (fp == null || !fp.equals(highlightedFingerprint)) {
+                    barColor = new Color(barColor.getRed(), barColor.getGreen(), barColor.getBlue(), 72);
+                }
+            }
+            g2.setColor(barColor);
             g2.fillRect(x1, y, bw, barH);
+            if (!ok && highlightedFingerprint != null) {
+                String fp = flakes.runIndexToFingerprint().get(i);
+                if (fp != null && fp.equals(highlightedFingerprint)) {
+                    g2.setColor(Color.BLACK);
+                    g2.drawRect(x1, y, bw - 1, barH);
+                }
+            }
         }
 
         g2.setColor(AXIS);
@@ -155,6 +226,8 @@ public final class OutcomeChartPanel extends JPanel {
                         + passes
                         + "   Fail: "
                         + fails
+                        + "   Unique flakes: "
+                        + flakes.flakes().size()
                         + "   Duration — min: "
                         + formatDuration(minMs)
                         + "   avg: "
@@ -165,5 +238,17 @@ public final class OutcomeChartPanel extends JPanel {
         g2.drawString(summary, padLeft, h - 8);
 
         g2.dispose();
+    }
+
+    private static Color colorForRun(int runIndex, boolean ok, FlakeAnalysis flakes) {
+        if (ok) {
+            return PASS;
+        }
+        String fp = flakes.runIndexToFingerprint().get(runIndex);
+        if (fp == null) {
+            return FAIL;
+        }
+        int idx = flakes.colorIndex(fp);
+        return FlakeColors.forIndex(idx);
     }
 }

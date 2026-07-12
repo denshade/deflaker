@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Thread-safe record of outcomes (pass = exit code 0) and how long each run took.
+ * Thread-safe record of outcomes (pass = exit code 0), timing, and captured failure output.
  */
 public final class RunHistory {
 
@@ -18,8 +18,8 @@ public final class RunHistory {
         this.maxRuns = maxRuns;
     }
 
-    public synchronized void record(boolean success, long durationMs) {
-        outcomes.add(new RunOutcome(success, durationMs));
+    public synchronized void record(RunOutcome outcome) {
+        outcomes.add(outcome);
         while (outcomes.size() > maxRuns) {
             outcomes.remove(0);
         }

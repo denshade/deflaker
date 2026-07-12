@@ -2,6 +2,9 @@ package info.thelaboflieven.ui;
 
 import info.thelaboflieven.cli.SimpleCommandLineSplitter;
 import info.thelaboflieven.run.CommandRunner;
+import info.thelaboflieven.run.CommandRunner.ProcessRunResult;
+import info.thelaboflieven.run.FlakeAnalysis;
+import info.thelaboflieven.run.FlakeFingerprinter;
 import info.thelaboflieven.run.RunHistory;
 import info.thelaboflieven.run.RunOutcome;
 
@@ -15,6 +18,7 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JSpinner;
+import javax.swing.JSplitPane;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import javax.swing.SpinnerNumberModel;
@@ -38,6 +42,8 @@ public final class CommandLinePasteFrame extends JFrame {
     private final JTextArea commandArea = new JTextArea(5, 72);
     private final JTextField previewField = new JTextField();
     private final OutcomeChartPanel chartPanel = new OutcomeChartPanel();
+    private final FlakeSummaryPanel flakeSummaryPanel = new FlakeSummaryPanel();
+    private final JTextArea failureLogArea = new JTextArea(5, 72);
     private final RunHistory history = new RunHistory(MAX_CHART_SAMPLES);
     private final JSpinner runCountSpinner =
             new JSpinner(new SpinnerNumberModel(100, 1, 1_000_000, 1));
@@ -56,9 +62,15 @@ public final class CommandLinePasteFrame extends JFrame {
         commandArea.setWrapStyleWord(true);
         Font mono = new Font(Font.MONOSPACED, Font.PLAIN, 13);
         commandArea.setFont(mono);
+        commandArea.setTransferHandler(new SafeTextTransferHandler());
 
         previewField.setEditable(false);
         previewField.setFont(mono);
+
+        failureLogArea.setEditable(false);
+        failureLogArea.setFont(mono);
+        failureLogArea.setLineWrap(true);
+        failureLogArea.setWrapStyleWord(true);
 
         stopButton.setEnabled(false);
 
@@ -103,6 +115,28 @@ public final class CommandLinePasteFrame extends JFrame {
         JPanel chartWrap = new JPanel(new BorderLayout());
         chartWrap.setBorder(BorderFactory.createEmptyBorder(0, 12, 8, 12));
         chartWrap.add(chartPanel, BorderLayout.CENTER);
+        flakeSummaryPanel.setFingerprintSelectionListener(chartPanel::setHighlightedFingerprint);
+
+        JPanel failureWrap = new JPanel(new BorderLayout(0, 4));
+        failureWrap.setBorder(BorderFactory.createEmptyBorder(0, 12, 0, 12));
+        JPanel failureHeader = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        failureHeader.add(
+                new JLabel("Failure logs (full output; unique patterns summarized in the table above):"));
+        JButton clearFailures = new JButton("Clear failure logs");
+        clearFailures.addActionListener(ev -> failureLogArea.setText(""));
+        failureHeader.add(clearFailures);
+        failureWrap.add(failureHeader, BorderLayout.NORTH);
+        JScrollPane failureScroll = new JScrollPane(failureLogArea);
+        failureScroll.setPreferredSize(new Dimension(720, 140));
+        failureWrap.add(failureScroll, BorderLayout.CENTER);
+
+        JSplitPane bottomSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, flakeSummaryPanel, failureWrap);
+        bottomSplit.setResizeWeight(0.38);
+        bottomSplit.setBorder(null);
+
+        JSplitPane split = new JSplitPane(JSplitPane.VERTICAL_SPLIT, chartWrap, bottomSplit);
+        split.setResizeWeight(0.48);
+        split.setBorder(null);
 
         JPanel south = new JPanel(new BorderLayout(0, 8));
         south.setBorder(BorderFactory.createEmptyBorder(0, 12, 12, 12));
@@ -111,7 +145,7 @@ public final class CommandLinePasteFrame extends JFrame {
 
         setLayout(new BorderLayout());
         add(north, BorderLayout.NORTH);
-        add(chartWrap, BorderLayout.CENTER);
+        add(split, BorderLayout.CENTER);
         add(south, BorderLayout.SOUTH);
 
         commandArea
@@ -140,7 +174,7 @@ public final class CommandLinePasteFrame extends JFrame {
         setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
         pack();
         setLocationRelativeTo(null);
-        setMinimumSize(new Dimension(760, 520));
+        setMinimumSize(new Dimension(760, 620));
         setVisible(true);
 
         updatePreview();
@@ -162,7 +196,8 @@ public final class CommandLinePasteFrame extends JFrame {
         int target = infinite ? Integer.MAX_VALUE : ((Number) runCountSpinner.getValue()).intValue();
 
         history.clear();
-        chartPanel.setOutcomes(history.snapshot());
+        failureLogArea.setText("");
+        refreshViews();
         currentProcess.set(null);
 
         startButton.setEnabled(false);
@@ -176,11 +211,11 @@ public final class CommandLinePasteFrame extends JFrame {
                     protected Void doInBackground() {
                         try {
                             while (!isCancelled() && completed < target) {
-                                int exit;
+                                ProcessRunResult result;
                                 long durationMs;
                                 long startNs = System.nanoTime();
                                 try {
-                                    exit =
+                                    result =
                                             CommandRunner.run(
                                                     tokens,
                                                     cwd,
@@ -198,8 +233,10 @@ public final class CommandLinePasteFrame extends JFrame {
                                 if (isCancelled()) {
                                     break;
                                 }
-                                boolean pass = exit == 0;
-                                publish(new RunOutcome(pass, durationMs));
+                                boolean pass = result.exitCode() == 0;
+                                String captured =
+                                        pass ? null : result.mergedOutput();
+                                publish(new RunOutcome(pass, durationMs, result.exitCode(), captured));
                                 completed++;
                             }
                         } catch (InterruptedException ex) {
@@ -219,9 +256,12 @@ public final class CommandLinePasteFrame extends JFrame {
                     @Override
                     protected void process(List<RunOutcome> chunks) {
                         for (RunOutcome row : chunks) {
-                            history.record(row.success(), row.durationMs());
+                            history.record(row);
+                            if (!row.success()) {
+                                appendFailureEntry(history.totalRuns(), row);
+                            }
                         }
-                        chartPanel.setOutcomes(history.snapshot());
+                        refreshViews();
                         setStatus(
                                 "Running… completed "
                                         + history.totalRuns()
@@ -234,7 +274,7 @@ public final class CommandLinePasteFrame extends JFrame {
                         currentProcess.set(null);
                         startButton.setEnabled(true);
                         stopButton.setEnabled(false);
-                        chartPanel.setOutcomes(history.snapshot());
+                        refreshViews();
                         setStatus(
                                 "Finished. Total runs: "
                                         + history.totalRuns()
@@ -247,6 +287,36 @@ public final class CommandLinePasteFrame extends JFrame {
                 };
         worker.execute();
         setStatus(infinite ? "Running until Stop…" : ("Running " + target + " times…"));
+    }
+
+    private void appendFailureEntry(int runNumber, RunOutcome row) {
+        String sep = "────────────────────────────────────────";
+        String header =
+                sep
+                        + "\nRun #"
+                        + runNumber
+                        + "   exit="
+                        + row.exitCode()
+                        + "   "
+                        + OutcomeChartPanel.formatDuration(row.durationMs())
+                        + "   flake: "
+                        + FlakeFingerprinter.label(row.exitCode(), row.capturedOutput())
+                        + "\n"
+                        + sep
+                        + "\n";
+        String body =
+                row.capturedOutput() != null && !row.capturedOutput().isEmpty()
+                        ? row.capturedOutput().trim()
+                        : "(no output captured)";
+        failureLogArea.append(header + body + "\n\n");
+        failureLogArea.setCaretPosition(failureLogArea.getDocument().getLength());
+    }
+
+    private void refreshViews() {
+        List<RunOutcome> snap = history.snapshot();
+        FlakeAnalysis analysis = FlakeAnalysis.fromOutcomes(snap);
+        chartPanel.setOutcomes(snap, analysis);
+        flakeSummaryPanel.setAnalysis(analysis);
     }
 
     private void stopRuns() {
